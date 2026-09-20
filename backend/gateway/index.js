@@ -32,7 +32,22 @@ app.use("/api/interview",isAuth ,proxyWithHeaders(process.env.INTERVIEW_SERVICE_
 app.use("/api/roadmap",isAuth ,proxyWithHeaders(process.env.ROADMAP_SERVICE_URL))
 app.use("/api/billing",isAuth ,proxyWithHeaders(process.env.BILLING_SERVICE_URL))
 app.get("/api/me",isAuth,getCurrentUser)
+// wakes up sleeping services on free hosting (public, no auth)
+app.get("/api/warmup", (req, res) => {
+    const urls = [
+        process.env.AUTH_SERVICE_URL,
+        process.env.RESUME_SERVICE_URL,
+        process.env.INTERVIEW_SERVICE_URL,
+        process.env.ROADMAP_SERVICE_URL,
+        process.env.BILLING_SERVICE_URL,
+    ].filter(Boolean)
 
+    res.json({ pinging: urls.length })
+
+    urls.forEach((u) => {
+        fetch(u, { signal: AbortSignal.timeout(60000) }).catch(() => {})
+    })
+})
 
 
 
