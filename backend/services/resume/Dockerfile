@@ -35,6 +35,9 @@ COPY shared ./shared
 
 WORKDIR /app/services/resume
 
+# make sure uploads exists and is writable by the node user
+RUN mkdir -p uploads && chown -R node:node /app/services/resume/uploads
+
 ENV NODE_ENV=production
 EXPOSE 8002
 USER node

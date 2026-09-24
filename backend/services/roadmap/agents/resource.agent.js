@@ -1,110 +1,110 @@
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import llm from "../configs/llm.js";
-import searchVideo from "../configs/youtube.js";
+  import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+  import llm from "../configs/llm.js";
+  import searchVideo from "../configs/youtube.js";
 
 
-const resourceAgent = async (state) => {
-    try {
-        const roadmap = state.roadmap
-        const moduleTitles = roadmap.modules.map((module) => module.title).join("\n");
+  const resourceAgent = async (state) => {
+      try {
+          const roadmap = state.roadmap
+          const moduleTitles = roadmap.modules.map((module) => module.title).join("\n");
 
-        const docsResponse = await llm.invoke([
-            new SystemMessage(`
-You are an expert software engineer.
+          const docsResponse = await llm.invoke([
+              new SystemMessage(`
+  You are an expert software engineer.
 
-For every module below return the official documentation.
+  For every module below return the official documentation.
 
-Rules:
+  Rules:
 
-1. Prefer official documentation.
-2. If official documentation does not exist, return the best learning article.
-3. Return ONLY valid JSON.
-4. Do not explain anything.
-5. Keep the same title.
+  1. Prefer official documentation.
+  2. If official documentation does not exist, return the best learning article.
+  3. Return ONLY valid JSON.
+  4. Do not explain anything.
+  5. Keep the same title.
 
-Return format:
+  Return format:
 
-[
-  {
-    "title":"",
-    "article":""
-  }
-]
-`), new HumanMessage(`Modules: ${moduleTitles}`)
-        ])
+  [
+    {
+      "title":"",
+      "article":""
+    }
+  ]
+  `), new HumanMessage(`Modules: ${moduleTitles}`)
+          ])
 
-        let docs = [];
+          let docs = [];
 
-        try {
+          try {
 
-            docs = JSON.parse(
-                docsResponse.content
-                    .replace(/```json/g, "")
-                    .replace(/```/g, "")
-                    .trim()
-            );
+              docs = JSON.parse(
+                  docsResponse.content
+                      .replace(/```json/g, "")
+                      .replace(/```/g, "")
+                      .trim()
+              );
 
-        } catch {
+          } catch {
 
-            docs = [];
+              docs = [];
 
-        }
+          }
 
-        const docsMap = new Map()
+          const docsMap = new Map()
 
-        docs.forEach((item) => {
+          docs.forEach((item) => {
 
-      docsMap.set(
-        item.title.toLowerCase(),
-        item.article
+        docsMap.set(
+          item.title.toLowerCase(),
+          item.article
+        );
+
+      });
+
+      roadmap.modules = await Promise.all(
+
+        roadmap.modules.map(async (module) => {
+
+          let video = null;
+
+          try {
+
+            video = await searchVideo(module.title);
+
+          } catch (err) {
+
+            console.log(err.message);
+
+          }
+
+          return {
+
+            ...module,
+
+            youtube: video?.url || "",
+
+            article:
+              docsMap.get(module.title.toLowerCase()) || "",
+
+          };
+
+        })
+
       );
 
-    });
+      return {
 
-    roadmap.modules = await Promise.all(
+        ...state,
 
-      roadmap.modules.map(async (module) => {
+        roadmap,
 
-        let video = null;
+      };
 
-        try {
+      } catch (error) {
+  console.log(error);
 
-          video = await searchVideo(module.title);
+      return state;
+      }
+  }
 
-        } catch (err) {
-
-          console.log(err.message);
-
-        }
-
-        return {
-
-          ...module,
-
-          youtube: video?.url || "",
-
-          article:
-            docsMap.get(module.title.toLowerCase()) || "",
-
-        };
-
-      })
-
-    );
-
-     return {
-
-      ...state,
-
-      roadmap,
-
-    };
-
-    } catch (error) {
- console.log(error);
-
-    return state;
-    }
-}
-
-export default resourceAgent
+  export default resourceAgent
